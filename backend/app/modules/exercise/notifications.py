@@ -64,7 +64,7 @@ def reminder_tick() -> None:
             if not 0 <= (local - scheduled).total_seconds() < 1800:
                 continue
             state = snapshot(db, subscription.user_id, now)
-            if state["completed_today"] or (state["today_kind"] == "strength" and state["current_day"] > 30):
+            if state["completed_today"] or (state["today_kind"] == "strength" and state["current_day"] > state["total_days"]):
                 continue
             title = f"Day {state['current_day']} · Strength" if state["today_kind"] == "strength" else "Time for a walk"
             try:

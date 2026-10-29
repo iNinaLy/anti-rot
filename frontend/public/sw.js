@@ -1,5 +1,5 @@
 // Only public app-shell files enter Cache Storage. Private data lives in user-keyed IndexedDB.
-const CACHE = 'anti-rot-shell-v6';
+const CACHE = 'anti-rot-shell-v10';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/anti-rot-logo.jpg', '/icon-192.png', '/icon-512.png'];
 self.addEventListener('push', event => {
   let data = {};

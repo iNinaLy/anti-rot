@@ -244,3 +244,11 @@ Review history is append-only during review submission; deleting a card/deck int
 Phase 2's free news module and the simplified Phase 3 exercise module are implemented. Manual tasks and rewards were removed at the user's request. Flashcard extras, activity history and operations are implemented; habits and daily goals are excluded. See DEPLOY.md for host-specific Tailscale setup and model installation.
 
 Implementation references: [FastAPI JWT guidance](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/) and [SQLAlchemy portable types](https://docs.sqlalchemy.org/en/20/core/type_basics.html).
+
+Exercise dashboard: walks remain separate from strength training. A strength-only percentage chart replaces the day grid. Plan settings customize the name, 1?365 sessions, next session, HTTPS YouTube playlist/video and optional per-session links, strength weekdays and reminders. Actual recorded strength sessions determine progress; manually skipping ahead does not mark sessions complete. Editing the plan retains existing history. Defaults remain 30 strength sessions, Tuesday/Friday/Sunday, 20:00 Malaysia; missed days never advance the plan.
+
+Today includes a weekly study schedule bar using Malaysia dates. Swipe left for the next day or right for the previous day; arrow buttons and keyboard navigation are also available, with a Today shortcut. Monday/Wednesday: AWS CloudIgnite; Tuesday: ITT585; Thursday: ICT652; Friday: ITT610 + ITT593; Saturday: ITT640 + ITT585; Sunday: ITT610 + ICT652 / assignment buffer.
+
+The light blue study schedule sits directly below Today's date. Use its gear button to edit all seven days; changes are saved privately to your account and shared across devices.
+
+Card images can be selected or pasted before saving a new card, with previews and removal. Browser uploads are resized to at most 1600 pixels on the longest edge and compressed to WebP at 80% quality before sending; the server validates, strips metadata and compresses stored images as well. Add prompt/answer text when creating a card.

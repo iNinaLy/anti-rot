@@ -205,3 +205,5 @@ DELIVERABLES
 - Work in small steps: scaffold, backend core, flashcards module,
   frontend, PWA/offline, Docker, GitHub Actions and deploy docs.
   Summarize what was done after each.
+
+Exercise dashboard: walks remain separate from strength training. A strength-only percentage chart replaces the day grid. Plan settings customize the name, 1?365 sessions, next session, HTTPS YouTube playlist/video and optional per-session links, strength weekdays and reminders. Actual recorded strength sessions determine progress; manually skipping ahead does not mark sessions complete. Editing the plan retains existing history. Defaults remain 30 strength sessions, Tuesday/Friday/Sunday, 20:00 Malaysia; missed days never advance the plan.

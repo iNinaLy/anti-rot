@@ -67,7 +67,7 @@ def normalize_image(data: bytes) -> bytes:
                 # Fresh pixels prevent EXIF, comments and other source metadata from surviving.
                 clean = Image.frombytes("RGBA", image.size, image.tobytes())
                 output = io.BytesIO()
-                clean.save(output, format="WEBP", lossless=True)
+                clean.save(output, format="WEBP", quality=80, method=4)
                 return output.getvalue()
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError,
             Image.DecompressionBombWarning):

@@ -130,3 +130,24 @@ def test_reminder_window_and_completed_activity_suppress_delivery(client, owner,
     monkeypatch.setattr(notifications, "utcnow", lambda: TUESDAY)
     notifications.reminder_tick()
     assert calls == []
+
+
+def test_custom_plan_links_and_strength_only_progress(client, owner, monkeypatch):
+    monkeypatch.setattr(service, "utcnow", lambda: TUESDAY)
+    plan = client.get("/api/exercise/plan", headers=owner).json()
+    plan.update(name="My strength plan", total_days=2, workout_links=["https://youtu.be/first", "https://youtu.be/second"])
+    saved = client.put("/api/exercise/plan", headers=owner, json=plan)
+    assert saved.status_code == 200
+    plan = saved.json()
+    assert plan["workout_url"] == "https://youtu.be/first"
+    result = client.post("/api/exercise/complete", headers=owner, json={"id": str(uuid4()), "kind": "strength", "day": 1, "version": plan["version"]}).json()
+    assert result["progress_percent"] == 50 and result["completed_count"] == 1
+    monkeypatch.setattr(service, "utcnow", lambda: TUESDAY + timedelta(days=1))
+    result = client.post("/api/exercise/complete", headers=owner, json={"id": str(uuid4()), "kind": "walk", "version": result["version"]}).json()
+    assert result["current_day"] == 2 and result["progress_percent"] == 50
+    assert result["workout_url"] == "https://youtu.be/second"
+    for bad in [{"playlist_url": "javascript:alert(1)"}, {"workout_links": ["https://example.com/video"]}, {"total_days": 0}, {"current_day": 4}]:
+        assert client.put("/api/exercise/plan", headers=owner, json={**result, **bad}).status_code == 422
+    # Manually moving ahead does not invent completed sessions.
+    result = client.put("/api/exercise/plan", headers=owner, json={**result, "current_day": 3}).json()
+    assert result["progress_percent"] == 50

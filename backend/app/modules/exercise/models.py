@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, ForeignKey, String, Text
+from sqlalchemy import Date, ForeignKey, String, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base, UTCDateTime, utcnow
@@ -10,6 +10,10 @@ from app.db import Base, UTCDateTime, utcnow
 class ExercisePlan(Base):
     __tablename__ = "exercise_plans"
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), default="Nourish Move Love")
+    total_days: Mapped[int] = mapped_column(default=30)
+    playlist_url: Mapped[str] = mapped_column(String(2048), default="https://www.youtube.com/playlist?list=PLpa0d6IJAhbgN8nyV8BK-GqN_A8CXgu9c")
+    workout_links: Mapped[list[str]] = mapped_column(JSON, default=list)
     current_day: Mapped[int] = mapped_column(default=1)
     weekdays: Mapped[str] = mapped_column(String(13), default="1,4,6")
     reminder_time: Mapped[str] = mapped_column(String(5), default="20:00")

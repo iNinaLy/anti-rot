@@ -36,18 +36,23 @@ def snapshot(db: Session, user_id: UUID, now: datetime | None = None) -> dict:
     kind = "strength" if local.weekday() in days else "walk"
     completed = db.scalars(select(ExerciseCompletion).where(ExerciseCompletion.user_id == user_id)).all()
     today_completion = next((item for item in completed if item.local_date == local.date() and item.kind == kind), None)
-    return {"current_day": plan.current_day, "weekdays": days, "reminder_time": plan.reminder_time,
+    completed_days = sorted({item.day for item in completed if item.kind == "strength" and item.day is not None and item.day <= plan.total_days})
+    link_day = today_completion.day if today_completion and kind == "strength" else plan.current_day
+    workout_url = (plan.workout_links[link_day - 1] if link_day and link_day <= len(plan.workout_links) else "") or plan.playlist_url
+    return {"name": plan.name, "total_days": plan.total_days, "workout_links": plan.workout_links,
+            "completed_count": len(completed_days), "progress_percent": 100 * len(completed_days) // plan.total_days, "current_day": plan.current_day, "weekdays": days, "reminder_time": plan.reminder_time,
             "reminders": plan.reminders, "version": plan.version, "today_kind": kind,
             "today_date": local.date(), "completed_today": today_completion is not None,
             "today_day": today_completion.day if today_completion else None,
-            "completed_days": sorted({item.day for item in completed if item.kind == "strength"}),
-            "playlist_url": PLAYLIST, "workout_url": PLAYLIST}
+            "completed_days": completed_days,
+            "playlist_url": plan.playlist_url, "workout_url": workout_url}
 
 
 def save_plan(db: Session, user_id: UUID, data: PlanIn) -> dict:
     get_plan(db, user_id)
     result = db.execute(update(ExercisePlan).where(ExercisePlan.user_id == user_id,
         ExercisePlan.version == data.version).values(current_day=data.current_day,
+        name=data.name, total_days=data.total_days, playlist_url=data.playlist_url, workout_links=data.workout_links,
         weekdays=",".join(map(str, data.weekdays)), reminder_time=data.reminder_time,
         reminders=data.reminders, version=data.version + 1))
     if result.rowcount != 1:
@@ -66,7 +71,7 @@ def complete(db: Session, user_id: UUID, data: CompleteIn) -> dict:
     plan = get_plan(db, user_id)
     now = utcnow()
     local_date = now.astimezone(ZONE).date()
-    if data.kind == "strength" and (data.day != plan.current_day or plan.current_day > 30):
+    if data.kind == "strength" and (data.day != plan.current_day or plan.current_day > plan.total_days):
         raise HTTPException(409, "This is not the current challenge day")
     if data.kind == "walk" and data.day is not None:
         raise HTTPException(422, "Walks do not have challenge day numbers")

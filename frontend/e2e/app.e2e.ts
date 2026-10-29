@@ -51,6 +51,20 @@ test('production PWA: create, attach, review offline, reload and sync', async ({
   await page.getByRole('button', { name: '+ Add card' }).click();
   await page.getByLabel('Front · the prompt').fill('What makes a habit stick?');
   await page.getByLabel('Back · the answer').fill('A small, repeatable action, done consistently.');
+  const largeImage = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas'); canvas.width = 2200; canvas.height = 1800;
+    const ctx = canvas.getContext('2d')!;
+    const pixels = ctx.createImageData(canvas.width, canvas.height);
+    crypto.getRandomValues(pixels.data.subarray(0, 65536));
+    for (let i = 65536; i < pixels.data.length; i += 65536) crypto.getRandomValues(pixels.data.subarray(i, Math.min(i + 65536, pixels.data.length)));
+    for (let i = 3; i < pixels.data.length; i += 4) pixels.data[i] = 255;
+    ctx.putImageData(pixels, 0, 0);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const original = Buffer.from(largeImage, 'base64');
+  expect(original.length).toBeGreaterThan(5 * 1024 * 1024);
+  await page.locator('.card-editor-side').first().locator('input[type=file]').first().setInputFiles({ name: 'large.png', mimeType: 'image/png', buffer: original });
+  await expect(page.getByAltText('Image ready to attach')).toBeVisible();
   await page.getByRole('button', { name: 'Save card →' }).click();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.locator('dialog input[type=file]').first().setInputFiles('public/icon-192.png');
@@ -58,14 +72,14 @@ test('production PWA: create, attach, review offline, reload and sync', async ({
   await page.getByRole('button', { name: 'Save card →' }).click();
   await page.getByRole('button', { name: 'Start quick session →' }).click();
   await expect(page.getByText('Session saved for offline review.')).toBeVisible();
-  await expect(page.locator('.review-card img')).toBeVisible();
+  await expect(page.locator('.review-card img').first()).toBeVisible();
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await page.reload();
   await expect(page.getByRole('button', { name: 'Reveal answer' })).toBeVisible();
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByText('What makes a habit stick?', { exact: true })).toBeVisible();
-  await expect(page.locator('.review-card img')).toBeVisible();
+  await expect(page.locator('.review-card img').first()).toBeVisible();
   await page.getByRole('button', { name: 'Reveal answer' }).click();
   await expect(page.getByText('A small, repeatable action, done consistently.', { exact: true })).toBeVisible();
   await page.screenshot({ path: '../artifacts/review-desktop.png', fullPage: true });
@@ -116,6 +130,11 @@ test('exercise defaults, day selection, completion and notification settings', a
   await page.getByRole('button', { name: 'Sign in →', exact: true }).click();
   await page.getByRole('button', { name: 'Open exercise', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Exercise', exact: true })).toBeVisible();
+  await expect(page.getByRole('progressbar', { name: 'Strength challenge completion' })).toHaveAttribute('value', '0');
+  await expect(page.getByText('Day 30', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Plan settings', exact: true }).click();
+  await expect(page.getByLabel('Number of strength sessions')).toHaveValue('30');
+  await page.getByLabel('Number of strength sessions').fill('40');
   await expect(page.getByLabel('Next challenge day')).toHaveValue('1');
   await expect(page.getByLabel('Reminder time')).toHaveValue('20:00');
   for (const day of ['Tuesday', 'Friday', 'Sunday']) await expect(page.getByLabel(day, { exact: true })).toBeChecked();
@@ -129,7 +148,10 @@ test('exercise defaults, day selection, completion and notification settings', a
   await page.getByRole('checkbox', { name: 'Complete Day 7', exact: true }).click();
   await expect(page.getByLabel('Next challenge day')).toHaveValue('8');
   await expect(page.getByRole('checkbox', { name: 'Complete Day 7', exact: true })).toBeChecked();
+  await expect(page.getByRole('progressbar', { name: 'Strength challenge completion' })).toHaveAttribute('value', '1');
   await page.reload();
+  await page.getByRole('button', { name: 'Plan settings', exact: true }).click();
+  await expect(page.getByLabel('Number of strength sessions')).toHaveValue('40');
   await expect(page.getByLabel('Next challenge day')).toHaveValue('8');
   await expect(page.getByLabel('Reminder time')).toHaveValue('21:15');
   // Exercise Web Push wiring without contacting an external push provider.
@@ -224,4 +246,39 @@ test('tags, multiple choice, reviewed AI drafts and activity history', async ({ 
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:'../artifacts/history-mobile.png',fullPage:true});
+});
+
+
+test('weekly study bar navigates dates with buttons, keys and swipes', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Email', { exact: true }).fill('browser@example.com');
+  await page.getByLabel('Password', { exact: true }).fill('browser-test-long-password');
+  await page.locator('form button.primary').click();
+  const bar = page.getByRole('region', { name: 'Study schedule', exact: true });
+  await expect(bar).toContainText('Study today');
+  const initial = await bar.locator('li').allTextContents();
+  for (let day = 0; day < 7; day++) await bar.getByRole('button', { name: 'Next study day' }).click();
+  await expect(bar.locator('li')).toHaveText(initial);
+  await bar.getByRole('button', { name: 'Today', exact: true }).click();
+  await bar.getByRole('button', { name: 'Previous study day' }).click();
+  await expect(bar).toContainText('Yesterday');
+  await bar.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(bar).toContainText('Study today');
+  await bar.dispatchEvent('touchstart', { touches: [{ identifier: 1, clientX: 280, clientY: 150 }] });
+  await bar.dispatchEvent('touchend', { changedTouches: [{ identifier: 1, clientX: 80, clientY: 155 }] });
+  await expect(bar).toContainText('Tomorrow');
+  await bar.dispatchEvent('touchstart', { touches: [{ identifier: 1, clientX: 80, clientY: 150 }] });
+  await bar.dispatchEvent('touchend', { changedTouches: [{ identifier: 1, clientX: 280, clientY: 155 }] });
+  await expect(bar).toContainText('Study today');
+  await bar.getByRole('button', { name: 'Edit study schedule' }).click();
+  await page.getByLabel('Monday', { exact: true }).fill('Custom Monday study');
+  await page.getByRole('button', { name: 'Save study schedule', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Edit weekly study schedule' })).toHaveCount(0);
+  await page.reload();
+  await bar.getByRole('button', { name: 'Edit study schedule' }).click();
+  await expect(page.getByLabel('Monday', { exact: true })).toHaveValue('Custom Monday study');
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

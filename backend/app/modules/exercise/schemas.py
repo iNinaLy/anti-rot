@@ -3,11 +3,29 @@ from typing import Literal
 from urllib.parse import urlparse
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class PlanIn(BaseModel):
-    current_day: int = Field(ge=1, le=31)
+    name: str = Field(default="Nourish Move Love", min_length=1, max_length=120)
+    total_days: int = Field(default=30, ge=1, le=365)
+    playlist_url: str = "https://www.youtube.com/playlist?list=PLpa0d6IJAhbgN8nyV8BK-GqN_A8CXgu9c"
+    workout_links: list[str] = Field(default_factory=list, max_length=365)
+    current_day: int = Field(ge=1, le=366)
+
+    @model_validator(mode="after")
+    def valid_plan(self):
+        if self.current_day > self.total_days + 1:
+            raise ValueError("Next session exceeds the plan length")
+        if len(self.workout_links) > self.total_days:
+            raise ValueError("Too many workout links for this plan")
+        for link in [self.playlist_url, *self.workout_links]:
+            if not link:
+                continue
+            url = urlparse(link)
+            if len(link) > 2048 or url.scheme != "https" or url.hostname not in ("youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be") or url.username or url.password or url.port not in (None, 443):
+                raise ValueError("Use HTTPS YouTube video or playlist links")
+        return self
     weekdays: list[int] = Field(min_length=0, max_length=7)
     reminder_time: str = Field(pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
     reminders: bool
@@ -29,13 +47,15 @@ class ExerciseOut(PlanIn):
     today_day: int | None
     completed_days: list[int]
     playlist_url: str
+    progress_percent: int
+    completed_count: int
     workout_url: str
 
 
 class CompleteIn(BaseModel):
     id: UUID
     kind: Literal["strength", "walk"]
-    day: int | None = Field(default=None, ge=1, le=30)
+    day: int | None = Field(default=None, ge=1, le=365)
     version: int = Field(ge=0)
 
 

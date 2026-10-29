@@ -1,6 +1,9 @@
+import { compressImage } from './modules/flashcards/compressImage';
+import { PendingImage } from './modules/flashcards/PendingImage';
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { api, authenticate, restoreSession, setToken } from './modules/core/api';
 import { Today } from './modules/core/Today';
+import { StudySchedule } from './modules/core/StudySchedule';
 import { clearPrivateData, jobsFor, queueReview, readData, saveData } from './modules/core/storage';
 import { cacheSessionImages, syncJobs } from './modules/flashcards/offline';
 import { CardImages } from './modules/flashcards/CardImages';
@@ -90,7 +93,8 @@ export default function App() {
   const [pickedChoice, setPickedChoice] = useState<string | null>(null);
   const [reauth, setReauth] = useState(false);
   const closeDeck = useCallback(() => setDeckEditor(null), []);
-  const closeCard = useCallback(() => setCardEditor(null), []);
+  const [pendingImages, setPendingImages] = useState<{ file: File; side: 'front' | 'back' }[]>([]);
+  const closeCard = useCallback(() => { setCardEditor(null); setPendingImages([]); }, []);
   const closeReauth = useCallback(() => setReauth(false), []);
   useEffect(() => {
     const open = () => { setSection('exercise'); setSelected(null); };
@@ -242,11 +246,17 @@ export default function App() {
     await run(async () => {
       if (!selected) return;
       const editing = cardEditor !== 'new' && cardEditor;
-      await api(`/flashcards/${editing ? `cards/${editing.id}` : `decks/${selected.id}/cards`}`, {
+      const saved = await api<Card>(`/flashcards/${editing ? `cards/${editing.id}` : `decks/${selected.id}/cards`}`, {
         method: editing ? 'PUT' : 'POST', body: JSON.stringify({ front: form.get('front'), back: form.get('back'),
           tags: String(form.get('tags') || '').split(',').map(value => value.trim()).filter(Boolean),
           choices: String(form.get('choices') || '').split('\n').map(value => value.trim()).filter(Boolean) }),
       });
+      setCardEditor(saved);
+      for (const pending of pendingImages) {
+        const upload = new FormData(); upload.append('file', pending.file);
+        await api(`/flashcards/cards/${saved.id}/images?side=${pending.side}`, { method: 'POST', body: upload });
+        setPendingImages(previous => previous.filter(item => item !== pending));
+      }
       setCards(await api<Card[]>(`/flashcards/decks/${selected.id}/cards`));
       setCardEditor(null); await loadDashboard();
     });
@@ -254,11 +264,14 @@ export default function App() {
 
   async function attach(files: FileList | File[], side: 'front' | 'back') {
     await run(async () => {
-      if (!cardEditor || cardEditor === 'new') return;
+      if (!cardEditor) return;
       for (const file of Array.from(files)) {
-        const form = new FormData(); form.append('file', file);
+        const compressed = await compressImage(file);
+        if (cardEditor === 'new') { setPendingImages(previous => [...previous, { file: compressed, side }]); continue; }
+        const form = new FormData(); form.append('file', compressed);
         await api(`/flashcards/cards/${cardEditor.id}/images?side=${side}`, { method: 'POST', body: form });
       }
+      if (cardEditor === 'new') return;
       const updated = await api<Card>(`/flashcards/cards/${cardEditor.id}`);
       setCardEditor(updated); setCards(old => old.map(c => c.id === updated.id ? updated : c));
     });
@@ -335,7 +348,9 @@ export default function App() {
         await api(`/flashcards/decks/${selected.id}`, { method: 'DELETE' }); setSelected(null); await loadDashboard();
       })}>Delete this deck</button>
     </> : <>
-      <div className="page-heading"><div><span className="eyebrow">{new Intl.DateTimeFormat('en', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()).toUpperCase()}</span><h1>A little learning, every day<span className="green">.</span></h1><p>Pick up a deck. Give your future self something to remember.</p></div><span className="sun-symbol" aria-hidden="true">☀</span></div>
+      <span className="eyebrow">{new Intl.DateTimeFormat('en', { timeZone: 'Asia/Kuala_Lumpur', weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()).toUpperCase()}</span>
+      <StudySchedule />
+      <div className="page-heading"><div><h1>A little learning, every day<span className="green">.</span></h1><p>Pick up a deck. Give your future self something to remember.</p></div><span className="sun-symbol" aria-hidden="true">☀</span></div>
       <div className="study-summary"><div><strong>Build knowledge that stays with you.</strong><p>{decks.some(deck => readyCount(deck) > 0) ? 'Your decks, your progress. Start with a focused round of 10 cards.' : due ? 'You’re up to date. Learning cards will return when their next step is due.' : 'Add cards to your decks and start a focused study session.'}</p></div>
         <button className="primary" disabled={!online || busy || !decks.some(deck => readyCount(deck) > 0)} onClick={() => {
           const next = decks.find(deck => readyCount(deck) > 0); if (next) void start(next);
@@ -362,15 +377,17 @@ export default function App() {
   {cardEditor && <Modal title={cardEditor === 'new' ? 'Add a little knowledge' : 'Edit card'} close={closeCard}>
     <form onSubmit={saveCard}>{(['front', 'back'] as const).map(side => <div className="card-editor-side" key={side} onPaste={event => {
       const images = Array.from(event.clipboardData.files).filter(f => f.type.startsWith('image/'));
-      if (images.length && cardEditor !== 'new') { event.preventDefault(); void attach(images, side); }
+      if (images.length) { event.preventDefault(); void attach(images, side); }
     }}><label>{side === 'front' ? 'Front · the prompt' : 'Back · the answer'}<textarea name={side} maxLength={20000} required={cardEditor === 'new'} defaultValue={cardEditor === 'new' ? '' : cardEditor[side]} /></label>
-      {cardEditor !== 'new' ? <><CardImages user={user.id} card={cardEditor} side={side} /><div className="attachment-actions">
+      {cardEditor !== 'new' && <CardImages user={user.id} card={cardEditor} side={side} />}
+      {pendingImages.filter(item => item.side === side).map((item, index) => <div key={index}><PendingImage file={item.file} /><button type="button" className="text-button danger" onClick={() => setPendingImages(previous => previous.filter(value => value !== item))}>Remove pending image</button></div>)}
+      <div className="attachment-actions">
         <label className="secondary file-button">+ Image<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={e => { if (e.target.files) void attach(e.target.files, side); e.target.value = ''; }} /></label>
         <label className="secondary file-button">Camera<input type="file" accept="image/*" capture="environment" disabled={busy} onChange={e => { if (e.target.files) void attach(e.target.files, side); e.target.value = ''; }} /></label>
-        {cardEditor.images.filter(image => image.side === side).map((image, i) => <button type="button" className="text-button danger" key={image.id} disabled={busy} onClick={() => void run(async () => {
+        {cardEditor !== 'new' && cardEditor.images.filter(image => image.side === side).map((image, i) => <button type="button" className="text-button danger" key={image.id} disabled={busy} onClick={() => void run(async () => {
           await api(`/flashcards/cards/${cardEditor.id}/images/${image.id}`, { method: 'DELETE' });
           const updated = await api<Card>(`/flashcards/cards/${cardEditor.id}`); setCardEditor(updated); setCards(old => old.map(c => c.id === updated.id ? updated : c));
-        })}>Remove image {i + 1}</button>)}<small className="muted">Or paste an image into this side.</small></div></> : <small className="muted">Save the card first to attach or paste images.</small>}
+        })}>Remove image {i + 1}</button>)}<small className="muted">Paste an image into this side, or choose a file. Images are automatically compressed.</small></div>
     </div>)}<label>Tags / topics<input name="tags" defaultValue={cardEditor === 'new' ? '' : cardEditor.tags?.join(', ') || ''} placeholder="e.g. routing, week-1" /></label>
     <label>Multiple-choice answers<textarea name="choices" defaultValue={cardEditor === 'new' ? '' : cardEditor.choices?.join('\n') || ''} placeholder="Optional: 2–6 options, one per line, including the exact back answer." /></label>
     <div className="modal-actions"><button className="primary" disabled={busy}>Save card →</button>{cardEditor !== 'new' && <button type="button" className="text-button danger" disabled={busy} onClick={() => void run(async () => {

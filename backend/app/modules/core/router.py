@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -85,3 +86,23 @@ def stats(user: User = Depends(current_user), db: Session = Depends(get_db)) -> 
     return {"completions": len(rows), "points": sum(row.points for row in rows), "active_days": len(counts),
             "days": [{"date": start + timedelta(days=index), "completions": counts[start + timedelta(days=index)],
                        "points": points[start + timedelta(days=index)]} for index in range(365)]}
+
+
+
+
+class StudyScheduleIn(BaseModel):
+    days: list[list[str]] = Field(min_length=7, max_length=7)
+
+
+@router.get("/study-schedule")
+def study_schedule(user: User = Depends(current_user)) -> dict:
+    return {"days": user.study_schedule}
+
+
+@router.put("/study-schedule")
+def update_study_schedule(data: StudyScheduleIn, user: User = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    if any(len(day) > 20 or any(not item.strip() or len(item) > 200 for item in day) for day in data.days):
+        raise HTTPException(422, "Use up to 20 entries per day, each 1?200 characters")
+    user.study_schedule = [[item.strip() for item in day] for day in data.days]
+    db.commit()
+    return {"days": user.study_schedule}

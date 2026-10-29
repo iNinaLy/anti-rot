@@ -376,3 +376,22 @@ progress::-moz-progress-bar { background: #6bcff0; border-radius: 4px; }
   .auth-form form { margin-top: 25px; }
   dialog { padding: 20px; }
 }
+
+.strength-progress { padding: 24px; border: 1px solid var(--line); border-radius: 8px; background: white; margin-bottom: 24px; }
+.strength-progress-summary { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin: 20px 0 12px; }
+.strength-progress-summary strong { font-size: 32px; color: #d94a8b; }
+.strength-progress progress { width: 100%; height: 18px; accent-color: #d94a8b; }
+.exercise-settings textarea { width: 100%; box-sizing: border-box; }
+.study-schedule { display: flex; align-items: center; gap: 12px; padding: 16px 12px; margin-bottom: 24px; background: #eaf6ff; border: 1px solid #c5e3f5; border-radius: 8px; touch-action: pan-y; }
+.study-schedule-content { flex: 1; min-width: 0; }
+.study-schedule-date { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+.study-schedule-date span { color: var(--muted); }
+.study-schedule ul { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; padding: 0; margin: 8px 0 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.study-schedule .icon-button { flex-shrink: 0; font-size: 24px; min-width: 36px; min-height: 44px; }
+.study-schedule-reset { flex-shrink: 0; }
+@media (max-width: 600px) { .study-schedule { gap: 4px; padding: 12px 6px; } .study-schedule ul { display: block; } .study-schedule-reset { font-size: 11px; padding: 4px; } }
+
+.study-schedule { margin-top: 12px; }
+.study-schedule-editor { padding: 20px; border: 1px solid var(--line); background: white; border-radius: 8px; margin-bottom: 24px; }
+.study-schedule-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px; }
+.study-schedule-fields textarea { width: 100%; box-sizing: border-box; }
