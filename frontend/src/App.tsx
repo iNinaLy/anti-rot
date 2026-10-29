@@ -9,7 +9,7 @@ import { SubjectSelect } from './modules/flashcards/SubjectSelect';
 import { ExercisePage } from './modules/exercise/Exercise';
 import { disableExercisePush } from './modules/exercise/push';
 import { NewsPage } from './modules/news/News';
-import { RewardsPage } from './modules/rewards/Rewards';
+import { HistoryPage } from './modules/core/History';
 import { DraftGenerator } from './modules/flashcards/DraftGenerator';
 import type { Card, Deck, Rating, ReviewSession, Today as TodayType, User } from './types';
 
@@ -68,8 +68,8 @@ function Auth({ onUser }: { onUser: (user: User) => void }) {
 export default function App() {
   const [user, setUser] = useState<User | null>(restoredUser);
   const [restoring, setRestoring] = useState(() => !restoredUser() && navigator.onLine);
-  const [section, setSection] = useState(() => { const view = new URLSearchParams(location.search).get('view'); return ['exercise','news','rewards'].includes(view || '') ? view! : 'today'; });
-  const exerciseOpen = section === 'exercise', newsOpen = section === 'news', rewardsOpen = section === 'rewards';
+  const [section, setSection] = useState(() => { const view = new URLSearchParams(location.search).get('view'); return ['exercise','news','history'].includes(view || '') ? view! : 'today'; });
+  const exerciseOpen = section === 'exercise', newsOpen = section === 'news', historyOpen = section === 'history';
   useEffect(() => {
     const url = new URL(location.href);
     if (section !== 'today') url.searchParams.set('view', section);
@@ -103,9 +103,9 @@ export default function App() {
     return () => window.removeEventListener('open-news', open);
   }, []);
   useEffect(() => {
-    const open = () => { setSection('rewards'); setSelected(null); };
-    window.addEventListener('open-rewards', open);
-    return () => window.removeEventListener('open-rewards', open);
+    const open = () => { setSection('history'); setSelected(null); };
+    window.addEventListener('open-history', open);
+    return () => window.removeEventListener('open-history', open);
   }, []);
 
   useEffect(() => {
@@ -278,7 +278,7 @@ export default function App() {
     <button className={selected && !exerciseOpen && !newsOpen ? 'nav-item active' : 'nav-item'} onClick={() => { setSection('today'); setSelected(null); setSearch(''); document.getElementById('decks')?.scrollIntoView({ behavior: 'smooth' }); }}>▤ <span>My decks</span></button>
     <button className={exerciseOpen ? 'nav-item active' : 'nav-item'} onClick={() => { setSection('exercise'); setSelected(null); }}>↗ <span>Exercise</span></button>
     <button className={newsOpen ? 'nav-item active' : 'nav-item'} onClick={() => { setSection('news'); setSelected(null); }}>▧ <span>News</span></button>
-    <button aria-label="Rewards" className={rewardsOpen ? 'nav-item active' : 'nav-item'} onClick={() => { setSection('rewards'); setSelected(null); }}>✦ <span>Rewards</span></button>
+    <button aria-label="Activity history" className={historyOpen ? 'nav-item active' : 'nav-item'} onClick={() => { setSection('history'); setSelected(null); }}>▦ <span>Activity history</span></button>
     <div className="sidebar-decks"><span className="nav-label">YOUR SUBJECTS</span>{subjectGroups.map(group => <div className="sidebar-subject" key={group.subject}>
       <h3>{group.subject}</h3>{group.decks.map(deck =>
       <button key={deck.id} className={`sidebar-deck ${selected?.id === deck.id ? 'active' : ''}`} disabled={!online || busy} onClick={() => void openDeck(deck)}>
@@ -287,7 +287,7 @@ export default function App() {
     <div className="sidebar-note"><span>↗</span><p>Small steps.<br /><strong>Lasting progress.</strong></p><small>A few minutes today go a long way.</small></div>
     <div className="account"><span className="avatar">{user.email[0].toUpperCase()}</span><div><strong title={user.email}>{user.email.split('@')[0]}</strong><small>Personal workspace</small></div><button className="icon-button" onClick={signOut} aria-label="Sign out" title="Sign out" disabled={busy || !online}>↪</button></div>
   </aside>
-  <div className="workspace"><header className="topbar"><span>My workspace <span className="slash">/</span> <strong>{rewardsOpen ? 'Rewards' : newsOpen ? 'News' : exerciseOpen ? 'Exercise' : selected ? selected.name : 'Today'}</strong></span>
+  <div className="workspace"><header className="topbar"><span>My workspace <span className="slash">/</span> <strong>{historyOpen ? 'Activity history' : newsOpen ? 'News' : exerciseOpen ? 'Exercise' : selected ? selected.name : 'Today'}</strong></span>
     <button className={`connection ${!online ? 'offline' : ''}`} onClick={() => void synchronize()} title="Sync saved reviews"><i />{online ? pending ? `${pending} pending · Sync` : 'All changes synced' : `Offline${pending ? ` · ${pending} pending` : ''}`}</button></header>
   <main className="content">
     {error && <div className="banner error" role="alert">{error}<button onClick={() => setError('')} aria-label="Dismiss error">×</button>
@@ -297,7 +297,7 @@ export default function App() {
       })}>Discard pending reviews</button>}</div>}
     {notice && <div className="banner" role="status">{notice}<button onClick={() => setNotice('')} aria-label="Dismiss message">×</button></div>}
 
-    {rewardsOpen ? <><button className="text-button back-link" onClick={() => setSection('today')}>← Back to Today</button><RewardsPage /></> : newsOpen ? <><button className="text-button back-link" onClick={() => setSection('today')}>← Back to Today</button><NewsPage /></> : exerciseOpen ? <><button className="text-button back-link" onClick={() => setSection('today')}>← Back to Today</button><ExercisePage onChange={loadDashboard} /></> : session && !selected ? <section className="review-area"><div className="section-heading"><div><span className="eyebrow">A LITTLE FOCUS TIME</span><h1>One card at a time.</h1></div><button className="secondary" disabled={busy} onClick={() => void run(async () => {
+    {historyOpen ? <><button className="text-button back-link" onClick={() => setSection('today')}>← Back to Today</button><HistoryPage /></> : newsOpen ? <><button className="text-button back-link" onClick={() => setSection('today')}>← Back to Today</button><NewsPage /></> : exerciseOpen ? <><button className="text-button back-link" onClick={() => setSection('today')}>← Back to Today</button><ExercisePage onChange={loadDashboard} /></> : session && !selected ? <section className="review-area"><div className="section-heading"><div><span className="eyebrow">A LITTLE FOCUS TIME</span><h1>One card at a time.</h1></div><button className="secondary" disabled={busy} onClick={() => void run(async () => {
       if (currentCard && !confirm('Leave this session? Unrated cards will stay due.')) return;
       await saveData(user.id, 'session', null); setSession(null); setRevealed(false); await loadDashboard();
     })}>Back to Today</button></div>

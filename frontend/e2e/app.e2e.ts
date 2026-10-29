@@ -183,7 +183,7 @@ test('news is finite, grouped, readable and configurable without consumption rew
   await page.screenshot({ path: '../artifacts/news-mobile.png', fullPage: true });
 });
 
-test('tags, multiple choice, reviewed AI drafts and rewards', async ({ page }) => {
+test('tags, multiple choice, reviewed AI drafts and activity history', async ({ page }) => {
   page.on('dialog', dialog => dialog.accept());
   await page.goto('/');
   await page.getByLabel('Email', { exact:true }).fill('browser@example.com');
@@ -217,14 +217,11 @@ test('tags, multiple choice, reviewed AI drafts and rewards', async ({ page }) =
   await expect(page.locator('.card-row')).toHaveCount(1);
   await page.getByRole('button', { name:'Save reviewed drafts', exact:true }).click();
   await expect(page.locator('.card-row')).toHaveCount(2);
-  await page.getByRole('button', {name:'Rewards',exact:true}).click();
-  await page.getByLabel('Reward name').fill('Tea break');
-  await page.getByLabel('Point cost').fill('1');
-  await page.getByRole('button',{name:'Save reward',exact:true}).click();
-  await page.getByRole('button',{name:'Redeem',exact:true}).click();
-  await expect(page.locator('.reward-history')).toContainText('Tea break');
+  await expect(page.getByRole('button', {name:'Rewards',exact:true})).toHaveCount(0);
+  await page.getByRole('button', {name:'Activity history',exact:true}).click();
+  await expect(page.getByRole('heading', {name:'Activity history',exact:true})).toBeVisible();
   await expect(page.locator('.activity-heatmap > span')).toHaveCount(365);
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({path:'../artifacts/rewards-mobile.png',fullPage:true});
+  await page.screenshot({path:'../artifacts/history-mobile.png',fullPage:true});
 });

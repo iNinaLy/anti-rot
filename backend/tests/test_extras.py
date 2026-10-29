@@ -63,21 +63,9 @@ def test_ai_unavailable_never_creates_cards(client, owner, db, monkeypatch):
     assert db.scalar(select(func.count()).select_from(Card)) == 0
 
 
-def test_rewards_balance_ownership_redemption_idempotency_and_history(client, owner, other, db):
-    user=db.scalar(select(User).where(User.email=='owner@example.com'))
-    db.add(ActivityCompletion(user_id=user.id, activity_type='flashcards',activity_ref=uuid4(),points=10));db.commit()
-    reward=client.post('/api/rewards/items',headers=owner,json={"name":"Movie night","cost":7}).json()
-    assert client.put(f"/api/rewards/items/{reward['id']}",headers=other,json={"name":"Stolen","cost":1}).status_code == 404
-    purchase={"id":str(uuid4()),"reward_id":reward['id']}
-    assert client.post('/api/rewards/redeem',headers=other,json=purchase).status_code == 404
-    response=client.post('/api/rewards/redeem',headers=owner,json=purchase)
-    assert response.json()['balance'] == 3
-    assert client.post('/api/rewards/redeem',headers=owner,json=purchase).json()['balance'] == 3
-    assert client.post('/api/rewards/redeem',headers=owner,json={**purchase,"id":str(uuid4())}).status_code == 409
-    assert client.get('/api/rewards',headers=other).json()['balance'] == 0
-    client.delete(f"/api/rewards/items/{reward['id']}",headers=owner)
-    result=client.get('/api/rewards',headers=owner).json()
-    assert result['rewards'] == [] and result['history'][0]['name'] == 'Movie night'
+def test_rewards_endpoints_are_removed(client, owner):
+    assert client.get('/api/rewards',headers=owner).status_code == 404
+    assert '/api/rewards' not in client.get('/openapi.json').json()['paths']
 
 
 def test_activity_statistics_are_private_and_have_no_goal(client, owner, other, db):

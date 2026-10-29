@@ -109,4 +109,4 @@ docker compose logs --tail=100 app
 curl -f http://localhost:8080/api/health
 ```
 
-Sign in, create a deck/card, review a session, and open Exercise, News and Rewards. Enable device notifications on each device and confirm real delivery there. News stays RSS-only; habits and daily goals are intentionally excluded.
+Sign in, create a deck/card, review a session, and open Exercise, News and Activity history. Enable device notifications on each device and confirm real delivery there. News stays RSS-only; rewards, habits and daily goals are intentionally excluded.

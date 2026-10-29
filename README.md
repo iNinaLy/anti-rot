@@ -20,7 +20,7 @@ Anki is the scheduling reference: Anti-Rot now uses FSRS-6 via the maintained [p
 - Alembic migrations, backend/frontend tests, Docker packaging, and GitHub Actions to test and publish to GHCR on pushes to `main`.
 - Card tags/topic filtering and multiple-choice review, with manual FSRS ratings.
 - Optional local AI drafts from pasted notes or text PDFs, reviewed and edited before explicit save. No paid AI API.
-- User-defined rewards, an idempotent redemption ledger and point balance, plus record-only activity statistics/heatmap. No habits or daily goals.
+- Record-only activity statistics and heatmap. Rewards, point spending, habits and daily goals are excluded.
 - Automatic nightly database/media/notification-key snapshots, restore and portable empty-target database transfer. See DEPLOY.md.
 
 ## Run locally
@@ -66,13 +66,13 @@ Visit the URL Vite prints (normally http://127.0.0.1:5173). Vite proxies `/api` 
 
 The optional `.tools/` folder contains ignored development runtimes used during implementation; it is not required, packaged or committed. On this workspace you can substitute `.tools/python/python.exe` for Python and `.tools/node.exe .tools/package/bin/npm-cli.js` for npm (adjust relative paths from subdirectories).
 
-## Flashcard extras and rewards
+## Flashcard extras and activity history
 
 In a card's editor, add comma-separated **Tags / topics** and optional **Multiple-choice answers** (2–6 lines, including the exact back answer). Use the deck's tag selector to filter cards and the next quick session. On the review screen choose **Recall** or **Multiple choice**. Picking an option reveals feedback; you still choose Again / Hard / Good / Easy. Cards without explicit options can use other batch answers, falling back to recall when fewer than two options exist. Offline batches retain tags and choices.
 
 Open a deck's **Generate flashcard drafts from notes or PDF** panel after enabling local Ollama (DEPLOY.md). Generate, edit and deselect drafts before **Save reviewed drafts**. Generation alone creates no cards. Text PDFs are limited to 5 MiB/50 pages; scanned PDFs need external OCR. Small local models can be inaccurate, so review every answer.
 
-Open **Rewards** to define names/costs, redeem earned points and view redemption/activity history. Points come from shared flashcard/exercise completions; news is never rewarded. Purchases preserve the price/name at redemption, and removing a reward retains history. Transactional balance checks prevent overspending, and duplicate redemption IDs do not spend twice. The heatmap records 365 UTC dates without a daily target or attendance requirement.
+Open **Activity history** to view completed activities and the heatmap of the last 365 UTC dates, without a daily target or attendance requirement. Rewards and point spending have been removed. Migration `0008` removes their tables; keep a pre-upgrade backup if you need the old reward/redemption records. Shared flashcard/exercise activity history is retained.
 
 ## News
 
@@ -130,7 +130,7 @@ Backend tests use isolated temporary databases/media directories and cover authe
 
 To run the same backend suite against PostgreSQL, set `TEST_DATABASE_URL` to a **dedicated, empty test database**. Tests create and drop the application's tables there. CI runs both SQLite and PostgreSQL suites. For a production browser test, first build the frontend, run `npx playwright install chromium`, then `npm run test:e2e` from `frontend`. Python must be on PATH; the test starts a temporary backend and checks image upload, offline reload/review, credential expiry, reconnect/sync and mobile layout.
 
-Implementation verification: 53 backend tests passed on SQLite and PostgreSQL 16, including CLI provisioning, disabled public registration, FSRS reference cases, learning/relearning transitions, and historical review migration; 6 Vitest tests passed. All four production Playwright flows passed, including cookie-only session restoration, simultaneous browser tabs, sign-out, and offline reviews. TypeScript/Vite build, Alembic upgrade/downgrade/schema-drift checks on both databases, npm dependency audit, Docker build, and Compose health/API/frontend smoke checks passed. The GitHub workflow runs these checks before publishing the deployment image. Deployment handoff is documented in DEPLOY.md. Browser screenshots of the dashboard and review screen at desktop/mobile sizes are saved under ignored `artifacts/` when the browser test runs.
+Implementation verification: 54 backend tests passed on SQLite and PostgreSQL 16, including CLI provisioning, disabled public registration, FSRS reference cases, learning/relearning transitions, and historical review migration; 6 Vitest tests passed. All four production Playwright flows passed, including cookie-only session restoration, simultaneous browser tabs, sign-out, and offline reviews. TypeScript/Vite build, Alembic upgrade/downgrade/schema-drift checks on both databases, npm dependency audit, Docker build, and Compose health/API/frontend smoke checks passed. The GitHub workflow runs these checks before publishing the deployment image. Deployment handoff is documented in DEPLOY.md. Browser screenshots of the dashboard and review screen at desktop/mobile sizes are saved under ignored `artifacts/` when the browser test runs.
 
 ## Offline use and installation
 
@@ -241,6 +241,6 @@ Review history is append-only during review submission; deleting a card/deck int
 3. Add `frontend/src/modules/<name>/register.tsx` exporting an `ActivityModule` and Today component. Vite discovers registrations automatically. Add the module's screens and navigation as its feature requires; other activity modules need no changes.
 4. Add ownership, completion and module-specific behavior tests.
 
-Phase 2's free news module and the simplified Phase 3 exercise module are implemented. The manual-task module was removed from the plan. The requested flashcard extras, rewards and operations are implemented; habits and daily goals are excluded. See DEPLOY.md for host-specific Tailscale setup and model installation.
+Phase 2's free news module and the simplified Phase 3 exercise module are implemented. Manual tasks and rewards were removed at the user's request. Flashcard extras, activity history and operations are implemented; habits and daily goals are excluded. See DEPLOY.md for host-specific Tailscale setup and model installation.
 
 Implementation references: [FastAPI JWT guidance](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/) and [SQLAlchemy portable types](https://docs.sqlalchemy.org/en/20/core/type_basics.html).

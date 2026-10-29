@@ -148,7 +148,8 @@ Phase 4: habits and daily goals EXCLUDED at the user's request.
   and exercise notifications remain. No habit tracker or goal is added.
 Phase 5: implemented. Multiple-choice review, tags/topic filters,
   optional local Ollama drafts from notes/text PDFs (explicit review/save),
-  and user-defined rewards with a transactional redemption ledger.
+  and activity history. Rewards and point spending removed at the user's
+  request, including their API/UI and tables (migration 0008).
 Phase 6: scheduler upgrade brought forward and implemented at the
   user's request: FSRS behind Scheduler, migrated using the reviews
   log. Future parameter optimization and scheduler settings UI may
