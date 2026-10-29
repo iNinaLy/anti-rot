@@ -1,0 +1,91 @@
+name: Test and publish container
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: daymark
+          POSTGRES_PASSWORD: daymark-test-password
+          POSTGRES_DB: daymark_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U daymark -d daymark_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SECRET_KEY: ci-only-secret-key-at-least-32-characters
+      DATABASE_URL: sqlite:///./migration-check.db
+      COOKIE_SECURE: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: pip install -r backend/requirements.txt
+      - run: python -m pytest
+        working-directory: backend
+      - run: python -m pytest
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://daymark:daymark-test-password@localhost:5432/daymark_test
+      - run: python -m alembic upgrade head && python -m alembic check && python -m alembic downgrade base && python -m alembic upgrade head
+        working-directory: backend
+      - run: npm ci && npm test && npm run build
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium && npm run test:e2e
+        working-directory: frontend
+      - run: docker build -t daymark:test .
+      - name: Smoke test container
+        run: |
+          docker run -d --name daymark-test -p 8000:8000 -e SECRET_KEY="$SECRET_KEY" -e DATABASE_URL=sqlite:////data/app.db daymark:test
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/api/health; then break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:8000/api/health
+          curl -fsS http://localhost:8000/ | grep -q Anti-Rot
+          docker logs daymark-test
+
+  publish:
+    needs: tests
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Lowercase image name
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:${{ github.sha }}

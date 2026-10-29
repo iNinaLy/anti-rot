@@ -1,0 +1,23 @@
+services:
+  app:
+    environment:
+      DATABASE_URL: postgresql+psycopg://antirot:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres/antirot
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: antirot
+      POSTGRES_DB: antirot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U antirot -d antirot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  postgres:

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <title>Anti-Rot pink brain</title>
+  <g fill="#f49ac2" stroke="#d65a94" stroke-width="2.5" stroke-linejoin="round">
+    <path d="M49 22C44 13 30 16 28 26C18 25 12 36 17 44C8 52 13 65 23 67C20 79 34 88 43 81C46 85 49 82 49 77Z"/>
+    <path d="M51 22C56 13 70 16 72 26C82 25 88 36 83 44C92 52 87 65 77 67C80 79 66 88 57 81C54 85 51 82 51 77Z"/>
+  </g>
+  <g fill="none" stroke="#bf467e" stroke-width="3" stroke-linecap="round">
+    <path d="M29 28C26 36 30 41 37 41M18 45C26 42 32 47 31 54M24 66C32 69 38 64 38 58M43 28C36 31 37 35 39 38M43 72C37 74 32 78 34 81"/>
+    <path d="M71 28C74 36 70 41 63 41M82 45C74 42 68 47 69 54M76 66C68 69 62 64 62 58M57 28C64 31 63 35 61 38M57 72C63 74 68 78 66 81"/>
+  </g>
+</svg>
